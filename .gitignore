@@ -1,2 +1,4 @@
 .env
 *.pem
+config.py
+__pycache__

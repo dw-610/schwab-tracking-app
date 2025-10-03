@@ -17,7 +17,11 @@ from dotenv import load_dotenv
 from flask import Flask, request
 import requests
 
-load_dotenv()
+# Load .env from secure location
+SECURE_DIR = Path.home() / ".config" / "schwab-oauth"
+SECURE_DIR.mkdir(parents=True, exist_ok=True)
+load_dotenv(SECURE_DIR / ".env")
+
 
 # ====== CONFIG ======
 APP_KEY = os.environ.get("SCHWAB_APP_KEY")  # Schwab "App Key" (client_id)
@@ -25,20 +29,19 @@ APP_SECRET = os.environ.get("SCHWAB_APP_SECRET")  # Schwab "Secret"
 if not APP_KEY or not APP_SECRET:
     raise ValueError(
         "Missing credentials! Ensure SCHWAB_APP_KEY and SCHWAB_APP_SECRET "
-        "are set in your .env file"
+        f"are set in {SECURE_DIR / '.env'}"
     )
 
 REDIRECT_URI = "https://127.0.0.1:8443/callback"
 SCOPE = "readonly"
 AUTH_URL = "https://api.schwabapi.com/v1/oauth/authorize"
 TOKEN_URL = "https://api.schwabapi.com/v1/oauth/token"
-CERT_FILE = "127.0.0.1.pem"
-KEY_FILE  = "127.0.0.1-key.pem"
+# Load certificates from secure location
+CERT_FILE = str(SECURE_DIR / "127.0.0.1.pem")
+KEY_FILE  = str(SECURE_DIR / "127.0.0.1-key.pem")
 USE_BASIC_AUTH = True  
 
-TOKEN_DIR = Path.home() / ".config" / "schwab-oauth"
-TOKEN_DIR.mkdir(parents=True, exist_ok=True)
-TOKENS_OUTFILE = TOKEN_DIR / "tokens.json"
+TOKENS_OUTFILE = SECURE_DIR / "tokens.json"
 
 
 # ====== PKCE + state ======

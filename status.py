@@ -10,17 +10,16 @@ from pathlib import Path
 from dotenv import load_dotenv
 from config import TARGETS
 
-load_dotenv()
+SECURE_DIR = Path.home() / ".config" / "schwab-oauth"
+load_dotenv(SECURE_DIR / ".env")
 
-
-TOKEN_DIR = Path.home() / ".config" / "schwab-oauth"
-TOKENS_FILE = TOKEN_DIR / "tokens.json"
+TOKENS_FILE = SECURE_DIR / "tokens.json"
 
 CUSTODIAL = os.environ.get("ACCT_NUM_CUST")
 INVESTING = os.environ.get("ACCT_NUM_INVST")
 ROTH = os.environ.get("ACCT_NUM_ROTH")
 ROTH2 = os.environ.get("ACCT_NUM_ROTH2")
-
+IRA = os.environ.get("ACCT_NUM_IRA")
 
 def get_valid_token() -> str:
     """Gets a valid access token, refreshing if necessary."""
@@ -37,7 +36,7 @@ def get_valid_token() -> str:
     if age < (expires_in - 60):
         print(f'[token] Access token still valid ({expires_in - age}s remaining)')
         return tokens["access_token"]
-    
+
     # Token expired, refresh it
     print("[token] Access token expired, refreshing...")
 
@@ -69,7 +68,7 @@ def get_valid_token() -> str:
 
     if not resp.ok:
         raise Exception(f"Token refresh failed: {resp.status_code} - {resp.text}")
-    
+
     # Save new tokens
     new_tokens = resp.json()
     new_tokens["_saved_at"] = int(time.time())
@@ -92,7 +91,7 @@ def get_values(account_number: str) -> dict:
         params={"fields": "positions"}
     )
     print(f'[get_values] GET status code: {resp.status_code}')
-    
+
     data = resp.json()
 
     values = {}
@@ -107,7 +106,7 @@ def get_values(account_number: str) -> dict:
     for pos in positions:
         positions_dict[pos['instrument']['symbol']] = pos['marketValue']
     values['positions'] = positions_dict
-    
+
     return values
 
 
@@ -143,8 +142,8 @@ def print_status(values: dict, targets: dict):
 
     # print information on the positions in the account
     for symbol, val in values['positions'].items():
-        print_line(symbol, val, total, targets[symbol])\
-        
+        print_line(symbol, val, total, targets[symbol])
+
     print("├" + "─"*51 + "┤")
     print_line('TOTAL', total, total, 1.0)
     print("└" + "─"*51 + "┘")
@@ -161,7 +160,7 @@ def print_all(account_number: str):
         params={"fields": "positions"}
     )
     print(f'[get_values] GET status code: {resp.status_code}')
-    
+
     data = resp.json()
 
     print(json.dumps(data, indent=4, sort_keys=False))
@@ -169,16 +168,5 @@ def print_all(account_number: str):
 
 if __name__=="__main__":
 
-    targets = {
-        'SCHH': 0.10,
-        'SCHP': 0.05,
-        'VBK': 0.15,
-        'VTC': 0.10,
-        'VWO': 0.15,
-        'SWISX': 0.20,
-        'SWPPX': 0.20,
-        'SWVXX': 0.05,
-    }
-    
     values = get_values(ROTH)
     print_status(values, TARGETS)

@@ -2,6 +2,7 @@
 
 import os
 import json
+import argparse
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -69,6 +70,19 @@ def print_all(account_number: str):
 
 
 if __name__=="__main__":
+    parser = argparse.ArgumentParser(description="Show account status")
+    parser.add_argument('account', choices=['CUSTODIAL', 'INVESTING', 'ROTH', 'ROTH2', 'IRA'],
+                        help='Account to display status for')
+    args = parser.parse_args()
+
+    accounts = {
+        'CUSTODIAL': CUSTODIAL,
+        'INVESTING': INVESTING,
+        'ROTH': ROTH,
+        'ROTH2': ROTH2,
+        'IRA': IRA
+    }
+
     client = schwab_client.SchwabClient()
-    values = client.get_account_values(ROTH)
+    values = client.get_account_values(accounts[args.account])
     print_status(values, TARGETS)

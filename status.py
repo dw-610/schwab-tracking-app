@@ -1,113 +1,24 @@
 """This script shows the basic status of an account."""
 
 import os
-import time
 import json
-import base64
-import requests
 from pathlib import Path
 
 from dotenv import load_dotenv
 from config import TARGETS
+import schwab_client
 
+
+# Load environment variables
 SECURE_DIR = Path.home() / ".config" / "schwab-oauth"
 load_dotenv(SECURE_DIR / ".env")
 
-TOKENS_FILE = SECURE_DIR / "tokens.json"
-
+# Account numbers from environment
 CUSTODIAL = os.environ.get("ACCT_NUM_CUST")
 INVESTING = os.environ.get("ACCT_NUM_INVST")
 ROTH = os.environ.get("ACCT_NUM_ROTH")
 ROTH2 = os.environ.get("ACCT_NUM_ROTH2")
 IRA = os.environ.get("ACCT_NUM_IRA")
-
-def get_valid_token() -> str:
-    """Gets a valid access token, refreshing if necessary."""
-
-    with open(TOKENS_FILE) as f:
-        tokens = json.load(f)
-
-    # Check if token is expired
-    saved_at = tokens.get("_saved_at", 0)
-    expires_in = tokens.get("expires_in", 1800) # Default 30min
-    age = int(time.time()) - saved_at
-
-    # If token still valid (with 60 second buffer), return it
-    if age < (expires_in - 60):
-        print(f'[token] Access token still valid ({expires_in - age}s remaining)')
-        return tokens["access_token"]
-
-    # Token expired, refresh it
-    print("[token] Access token expired, refreshing...")
-
-    APP_KEY = os.environ.get("SCHWAB_APP_KEY")
-    APP_SECRET = os.environ.get("SCHWAB_APP_SECRET")
-
-    if not APP_KEY or not APP_SECRET:
-        raise ValueError("Missing SCHWAB_APP_KEY or SCHWAB_APP_SECRET")
-
-    # Make refresh token request
-    data = {
-        "grant_type": "refresh_token",
-        "refresh_token": tokens["refresh_token"]
-    }
-
-    # Use Basic Auth (same as oauth.py)
-    basic = base64.b64encode(f"{APP_KEY}:{APP_SECRET}".encode()).decode()
-    headers = {
-        "Authorization": f"Basic {basic}",
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-
-    resp = requests.post(
-        "https://api.schwabapi.com/v1/oauth/token",
-        data=data,
-        headers=headers,
-        timeout=20
-    )
-
-    if not resp.ok:
-        raise Exception(f"Token refresh failed: {resp.status_code} - {resp.text}")
-
-    # Save new tokens
-    new_tokens = resp.json()
-    new_tokens["_saved_at"] = int(time.time())
-    with open(TOKENS_FILE, "w") as f:
-        json.dump(new_tokens, f, indent=2)
-    os.chmod(TOKENS_FILE, 0o600)
-
-    print("[token] Access token refreshed successfully")
-    return new_tokens["access_token"]
-
-
-def get_values(account_number: str) -> dict:
-    """Gets the positions and the amounts for the provided account."""
-
-    access_token = get_valid_token()
-
-    resp = requests.get(
-        f"https://api.schwabapi.com/trader/v1/accounts/{account_number}",
-        headers={"Authorization": f"Bearer {access_token}"},
-        params={"fields": "positions"}
-    )
-    print(f'[get_values] GET status code: {resp.status_code}')
-
-    data = resp.json()
-
-    values = {}
-
-    aggregated = data["aggregatedBalance"]
-    values['total'] = aggregated['liquidationValue']
-
-    securities = data["securitiesAccount"]
-    values['cash'] = securities['currentBalances']['totalCash']
-    positions = securities['positions']
-    positions_dict = {}
-    for pos in positions:
-        positions_dict[pos['instrument']['symbol']] = pos['marketValue']
-    values['positions'] = positions_dict
-
-    return values
 
 
 def print_line(name: str, value: float, total: float, target_percent: float):
@@ -128,7 +39,7 @@ def print_line(name: str, value: float, total: float, target_percent: float):
 
 
 def print_status(values: dict, targets: dict):
-    """Formats and prints the status table given the output of get_values."""
+    """Formats and prints the status table given the output of get_account_values."""
 
     # print table header
     print("┌" + "─"*51 + "┐")
@@ -152,21 +63,12 @@ def print_status(values: dict, targets: dict):
 def print_all(account_number: str):
     """Prints all of the JSON for an account."""
 
-    access_token = get_valid_token()
-
-    resp = requests.get(
-        f"https://api.schwabapi.com/trader/v1/accounts/{account_number}",
-        headers={"Authorization": f"Bearer {access_token}"},
-        params={"fields": "positions"}
-    )
-    print(f'[get_values] GET status code: {resp.status_code}')
-
-    data = resp.json()
-
+    client = schwab_client.SchwabClient()
+    data = client.get_account_data(account_number, include_positions=True)
     print(json.dumps(data, indent=4, sort_keys=False))
 
 
 if __name__=="__main__":
-
-    values = get_values(ROTH)
+    client = schwab_client.SchwabClient()
+    values = client.get_account_values(ROTH)
     print_status(values, TARGETS)

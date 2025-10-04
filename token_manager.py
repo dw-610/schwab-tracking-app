@@ -44,7 +44,16 @@ CERT_FILE = str(SECURE_DIR / "127.0.0.1.pem")
 KEY_FILE = str(SECURE_DIR / "127.0.0.1-key.pem")
 
 # Token storage
-TOKENS_FILE = SECURE_DIR / "tokens.json"
+def _get_tokens_file(profile: str = "default") -> Path:
+    """Get the path to the tokens file for a given profile.
+
+    Args:
+        profile: Profile name for multi-account support (default: "default")
+
+    Returns:
+        Path: Path to the tokens file for this profile
+    """
+    return SECURE_DIR / f"tokens_{profile}.json"
 
 # Use Basic Auth for token requests (recommended)
 USE_BASIC_AUTH = True
@@ -66,8 +75,11 @@ def _validate_credentials():
 
 
 # ====== Token Management ======
-def get_valid_token() -> str:
+def get_valid_token(profile: str = "default") -> str:
     """Get a valid access token, automatically refreshing if expired.
+
+    Args:
+        profile: Profile name for multi-account support (default: "default")
 
     Returns:
         str: Valid access token for API requests
@@ -79,7 +91,8 @@ def get_valid_token() -> str:
     """
     _validate_credentials()
 
-    with open(TOKENS_FILE) as f:
+    tokens_file = _get_tokens_file(profile)
+    with open(tokens_file) as f:
         tokens = json.load(f)
 
     # Check if token is expired
@@ -116,24 +129,29 @@ def get_valid_token() -> str:
     # Save new tokens
     new_tokens = resp.json()
     new_tokens["_saved_at"] = int(time.time())
-    with open(TOKENS_FILE, "w") as f:
+    with open(tokens_file, "w") as f:
         json.dump(new_tokens, f, indent=2)
-    os.chmod(TOKENS_FILE, 0o600)
+    os.chmod(tokens_file, 0o600)
 
     print("[token] Access token refreshed successfully")
     return new_tokens["access_token"]
 
 
 # ====== OAuth Flow ======
-def perform_oauth_flow():
+def perform_oauth_flow(profile: str = "default"):
     """Perform the initial OAuth authorization flow with PKCE.
 
     This starts a local HTTPS server, opens a browser for user authorization,
     and exchanges the authorization code for access and refresh tokens.
 
     The tokens are saved to the secure directory for future use.
+
+    Args:
+        profile: Profile name for multi-account support (default: "default")
     """
     _validate_credentials()
+
+    tokens_file = _get_tokens_file(profile)
 
     # Generate PKCE challenge
     code_verifier = secrets.token_urlsafe(64)  # 43-128 chars
@@ -193,10 +211,10 @@ def perform_oauth_flow():
             try:
                 payload = resp.json()
                 payload["_saved_at"] = int(time.time())
-                with open(TOKENS_FILE, "w") as f:
+                with open(tokens_file, "w") as f:
                     json.dump(payload, f, indent=2)
-                os.chmod(TOKENS_FILE, 0o600)
-                print(f"[token] Saved tokens to {TOKENS_FILE}", flush=True)
+                os.chmod(tokens_file, 0o600)
+                print(f"[token] Saved tokens to {tokens_file}", flush=True)
             except Exception as e:
                 print("[token] couldn't parse/save JSON:", e, flush=True)
             return "Tokens received  you can close this tab. Check your console.", 200

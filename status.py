@@ -70,6 +70,12 @@ def print_status(values: dict, targets: dict = None):
         target_pct = targets.get(symbol) if targets is not None else None
         print_line(symbol, val, total, target_pct)
 
+    # print positions that have targets but are not in the portfolio
+    if targets is not None:
+        for symbol, target_pct in targets.items():
+            if symbol not in values['positions']:
+                print_line(symbol, 0.0, total, target_pct)
+
     if targets is not None:
         print("├" + "─"*51 + "┤")
         print_line('TOTAL', total, total, 1.0)
@@ -80,16 +86,23 @@ def print_status(values: dict, targets: dict = None):
         print("└" + "─"*26 + "┘")
 
 
-def print_all(account_number: str):
-    """Prints all of the JSON for an account."""
+def print_all(account_number: str, profile: str = "default"):
+    """Prints all of the JSON for an account.
 
-    client = schwab_client.SchwabClient()
+    Args:
+        account_number: The account number to retrieve data for
+        profile: Profile name for multi-account support (default: "default")
+    """
+
+    client = schwab_client.SchwabClient(profile=profile)
     data = client.get_account_data(account_number, include_positions=True)
     print(json.dumps(data, indent=4, sort_keys=False))
 
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description="Show account status")
+    parser.add_argument('profile',
+                        help='Profile name for multi-account support')
     parser.add_argument('account', choices=['CUSTODIAL', 'INVESTING', 'ROTH', 'ROTH2', 'IRA'],
                         help='Account to display status for')
     args = parser.parse_args()
@@ -102,7 +115,7 @@ if __name__=="__main__":
         'IRA': IRA
     }
 
-    client = schwab_client.SchwabClient()
+    client = schwab_client.SchwabClient(profile=args.profile)
     values = client.get_account_values(accounts[args.account])
 
     # Check if targets exist for this account

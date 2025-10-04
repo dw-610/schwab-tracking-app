@@ -18,9 +18,13 @@ class SchwabClient:
 
     BASE_URL = "https://api.schwabapi.com/trader/v1"
 
-    def __init__(self):
-        """Initialize the Schwab API client."""
-        pass
+    def __init__(self, profile: str = "default"):
+        """Initialize the Schwab API client.
+
+        Args:
+            profile: Profile name for multi-account support (default: "default")
+        """
+        self.profile = profile
 
     def _get_headers(self) -> dict:
         """Get headers with valid authentication token.
@@ -28,7 +32,7 @@ class SchwabClient:
         Returns:
             dict: Headers including Authorization bearer token
         """
-        access_token = token_manager.get_valid_token()
+        access_token = token_manager.get_valid_token(profile=self.profile)
         return {"Authorization": f"Bearer {access_token}"}
 
     def get_account_numbers(self) -> list:

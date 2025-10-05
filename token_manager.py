@@ -75,11 +75,12 @@ def _validate_credentials():
 
 
 # ====== Token Management ======
-def get_valid_token(profile: str = "default") -> str:
+def get_valid_token(profile: str = "default", verbose: bool = False) -> str:
     """Get a valid access token, automatically refreshing if expired.
 
     Args:
         profile: Profile name for multi-account support (default: "default")
+        verbose: Whether to print debug messages (default: False)
 
     Returns:
         str: Valid access token for API requests
@@ -102,11 +103,13 @@ def get_valid_token(profile: str = "default") -> str:
 
     # If token still valid (with 60 second buffer), return it
     if age < (expires_in - 60):
-        print(f'[token] Access token still valid ({expires_in - age}s remaining)')
+        if verbose:
+            print(f'[token] Access token still valid ({expires_in - age}s remaining)')
         return tokens["access_token"]
 
     # Token expired, refresh it
-    print("[token] Access token expired, refreshing...")
+    if verbose:
+        print("[token] Access token expired, refreshing...")
 
     # Make refresh token request
     data = {
@@ -133,7 +136,8 @@ def get_valid_token(profile: str = "default") -> str:
         json.dump(new_tokens, f, indent=2)
     os.chmod(tokens_file, 0o600)
 
-    print("[token] Access token refreshed successfully")
+    if verbose:
+        print("[token] Access token refreshed successfully")
     return new_tokens["access_token"]
 
 

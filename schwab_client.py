@@ -18,13 +18,15 @@ class SchwabClient:
 
     BASE_URL = "https://api.schwabapi.com/trader/v1"
 
-    def __init__(self, profile: str = "default"):
+    def __init__(self, profile: str = "default", verbose: bool = False):
         """Initialize the Schwab API client.
 
         Args:
             profile: Profile name for multi-account support (default: "default")
+            verbose: Whether to print debug messages (default: False)
         """
         self.profile = profile
+        self.verbose = verbose
 
     def _get_headers(self) -> dict:
         """Get headers with valid authentication token.
@@ -32,7 +34,7 @@ class SchwabClient:
         Returns:
             dict: Headers including Authorization bearer token
         """
-        access_token = token_manager.get_valid_token(profile=self.profile)
+        access_token = token_manager.get_valid_token(profile=self.profile, verbose=self.verbose)
         return {"Authorization": f"Bearer {access_token}"}
 
     def get_account_numbers(self) -> list:
@@ -48,7 +50,8 @@ class SchwabClient:
             f"{self.BASE_URL}/accounts/accountNumbers",
             headers=self._get_headers()
         )
-        print(f'[SchwabClient] get_account_numbers status: {resp.status_code}')
+        if self.verbose:
+            print(f'[SchwabClient] get_account_numbers status: {resp.status_code}')
         resp.raise_for_status()
         return resp.json()
 
@@ -78,7 +81,8 @@ class SchwabClient:
             headers=self._get_headers(),
             params=params
         )
-        print(f'[SchwabClient] get_account_data status: {resp.status_code}')
+        if self.verbose:
+            print(f'[SchwabClient] get_account_data status: {resp.status_code}')
         resp.raise_for_status()
         return resp.json()
 

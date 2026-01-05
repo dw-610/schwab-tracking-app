@@ -24,3 +24,7 @@ python status.py default ROTH
 # Environment Variables
 
 oauth_end_to_end.py requires two environment variables, `SCHWAB_APP_KEY` AND `SCHWAB_APP_SECRET` with your corresponding application key and secret.
+
+# TODOs
+
+Biggest improvement would be to implement automatic portfolio rebalancing (input allocations, compute transactions, check with user, submit orders)
